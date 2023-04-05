@@ -259,7 +259,7 @@ for (catchment in 1:2){
               phi = c(0, 2*pi),
               k = c(-12,-8), 
               t = isotopeP[[catchment]]$date,
-              nIter = 10000,
+              nIter = 100000,
               nBestIter = 1, 
               weight = isotopeP[[catchment]]$water_flux_mm,
               setSeed = 2023)
@@ -337,8 +337,10 @@ revisedProcedure$fitGamma[[icatchment]] <-
            nCores = 50, 
            nWarmupYears = 10,
            setSeed = 2023)
-  save(revisedProcedure, file = "revisedProcedure.rda")
 }
+
+# Save result
+save(revisedProcedure, file = "revisedProcedure.rda")
 ```
 
 Now compared the simulated instream istotope concentrations from the traditional 
@@ -347,7 +349,7 @@ from the traditional approach
 
 ```{r, fig.width=10,fig.height=3, fig.align = 'center', eval = TRUE}
 # Load the results (uncomment the next line) if users does not run the previous R script
-# load('data/revisedProcedure.rda')
+ load('data/revisedProcedure.rda')
 
 # Plot the fitted results and compared with the traditional and observed data
 icatchment <- 1
