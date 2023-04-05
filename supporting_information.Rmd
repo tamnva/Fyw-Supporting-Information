@@ -1,0 +1,454 @@
+---
+title: "Young water fraction estimation"
+author: "Tam V. Nguyen"
+date: "`r Sys.Date()`"
+output: 
+  rmdformats::readthedown:
+    toc_depth: 5
+bibliography: references.bib
+---
+
+```{css, echo = FALSE}
+    #content{
+        max-width:5000px;
+    }
+    ``` 
+    
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. Introduction
+
+This document describes how the young water fraction is calculated based on the traditional [@Kirchner2016] and revised (this study) procedures using the Fyw package. All results in the submitted manuscript mentioned below can be reproduced by running the R scripts provided here.
+
+Tam V. Nguyen,......., and Jan H. Fleckenstein (2023). Revisiting the Procedure for Quantifying the Young Water Fraction Based on Seasonal Tracer Cycles. Manuscript submitted to Water Resources Research.
+
+To run the code in this document, you need installed <a href="https://www.r-project.org/" target="_blank">R (\>= 4.2.2)</a> on your computer. Then you install the <a href="https://github.com/tamnva/Fyw" target="_blank">Fyw</a> package
+
+```{r, message=FALSE}
+library(Fyw)             # Package for young water fraction estimation
+library(ggplot2)         # Package for visualization
+library(lubridate)       # Package for converting date to decimal
+```
+
+## 2. Data processing and exploration
+
+We used the isotope and meterological data from the Alp and Erlenbach catchments located in Switzerland [@Freyberg2022]. Below is the R script for retrieving and reprocessing the data. The data were already included in the Fyw package, in other words, these data will be automatically loaded when calling the Fyw package. Therefore, running the line of code starting with "source('R/preProcessingData.R')" is only optional.
+
+```{r, eval= FALSE}
+
+# The next line of code could be skipped because data were already included in the Fyw package
+# source('R/preProcessingData.R')
+
+# Information about the data
+?isotopeData
+```
+
+Display and visualization of the data (isotope concentrations in precipitation and streamflow, precipitation and streamflow) from the Alp and Erlenbach catchments. From here on, we refer "P" to precipitation and "S" to streamflow.
+
+```{r, fig.width=10,fig.height=3, fig.align = 'center', eval = TRUE}
+# Display the data
+isotopeData
+
+# Plot isotope data in precipitation and streamflow
+ggplot(isotopeData) +
+  geom_point(aes(x = date, y = delta_18O, col = catchment), alpha = 0.5, linewidth = 0.75)+
+  facet_grid(cols = vars(variable))+ 
+  labs(x = "", y = expression(paste(delta^{18}, "O concentration (‰)")), color = "") +
+  theme_bw()
+
+# Plot precipitation (P) and streamflow (S)
+ggplot(isotopeData) +
+  geom_line(aes(x = date, y = water_flux_mm, col = catchment), alpha = 0.5, linewidth = 0.75)+
+  facet_grid(cols = vars(variable))+
+  labs(x = "", y = "P or S (mm/day)", color = "")+
+  theme_bw() 
+```
+
+## 3. Young water fraction estimation
+
+Extracting data from 'isotopeData' for each catchment separately
+
+```{r, eval = TRUE}
+# Extract data 
+catchmentName <- unique(isotopeData$catchment)
+
+# Extracted data as list
+isotopeP <- list()
+isotopeS <- list()
+
+# Get isotope in precipitation (P) and streamflow (S) for the Alp & Erlenbach
+for (icatchment in 1:length(catchmentName)){
+  isotopeP[[icatchment]] <- subset(isotopeData,
+                                   catchment == catchmentName[icatchment] &
+                                   variable == "precipitation")
+  isotopeS[[icatchment]] <- subset(isotopeData, 
+                                   catchment == catchmentName[icatchment] & 
+                                   variable == "streamflow")
+}
+```
+
+### 3.1. Traditional procedure
+
+The procedure for finding the young water fraction and the transit time distribution in the traditional procedure are as follows:
+
+-   Step 1: Fit the sine-wave to observed isotope concentrations in precipitation, e.g., using the iteratively least squares (IRLS) regression approach. The sine-wave use for fitting has the following form :
+
+    $$ c_P = a_P \cdot cos(2 \pi t) + b_P \cdot sin(2 \pi t) + k_P $$
+
+```{r, fig.width=10,fig.height=3, fig.align = 'center',eval = TRUE}
+# Create a list object to store results from the traditional procedure
+traditionalProcedure <- list()
+traditionalProcedure$fitSineP <- list()
+
+# Loop over each catchment
+for (icatchment in 1:length(catchmentName)){
+  # Get date of observed in decimal
+  t <- decimal_date(isotopeP[[icatchment]]$date) - trunc(decimal_date(isotopeP[[icatchment]]$date))
+  
+  # Fit to sine wave to observed isotope in P using IRLS method
+  traditionalProcedure$fitSineP[[icatchment]] <- IRLS(Y = isotopeP[[icatchment]]$delta_18O,
+                                                      X = data.frame(cos = cos(2*pi*t), sin = sin(2*pi*t)),
+                                                      pweights = isotopeP[[icatchment]]$water_flux_mm)
+}
+
+# Plot to see the fitted sine-wave to observed isotope concentrations in precipitation
+icatchment <- 1 #Alp catchment
+  
+ggplot()+
+  geom_point(data = isotopeP[[icatchment]], aes(x = date, y = delta_18O, color = "cP (observed)"), alpha = 0.5) + 
+  geom_line(aes(x = isotopeP[[icatchment]]$date, y = as.numeric(traditionalProcedure$fitSineP[[icatchment]]$fitted.values), color = "cP (fitted sine-wave)")) +
+  scale_color_manual(values = c("cP (observed)" = "black", "cP (fitted sine-wave)" = "blue"), guide = guide_legend(override.aes = list(linetype = c("solid", "blank"),shape = c(NA, 19))))+
+  labs(x = "", y = expression(paste(delta^{18}, "O concentrations in P(‰)")), title = expression(paste("Alp - ", delta^{18}, "O concentrations in precipitation(‰)")), color = "")+
+  theme(legend.position = "top")+
+  theme_bw()
+
+
+icatchment <- 2 #Erlenbach catchment
+  
+ggplot()+
+  geom_point(data = isotopeP[[icatchment]], aes(x = date, y = delta_18O, color = "cP (observed)"), alpha = 0.5) + 
+  geom_line(aes(x = isotopeP[[icatchment]]$date, y = as.numeric(traditionalProcedure$fitSineP[[icatchment]]$fitted.values), color = "cP (fitted sine-wave)")) +
+  scale_color_manual(values = c("cP (observed)" = "black", "cP (fitted sine-wave)" = "blue"), guide = guide_legend(override.aes = list(linetype = c("solid", "blank"),shape = c(NA, 19))))+
+  labs(x = "", y = expression(paste(delta^{18}, "O concentrations in P(‰)")), title = expression(paste("Erlenbach - ", delta^{18}, "O concentrations in precipitation(‰)")), color = "")+
+  theme(legend.position = "top")+
+theme_bw()
+
+
+```
+
+-   Step 2: Fit the sine-wave to observed isotope concentrations in streamflow, e.g., using IRLS. The sine-wave use for fitting has the following form:
+
+    $$ c_S = a_S \cdot cos(2 \pi t) + b_P \cdot sin(2 \pi t) + k_S $$
+
+```{r, fig.width=10,fig.height=3, fig.align = 'center', eval = TRUE}
+
+# Loop over each catchment
+for (icatchment in 1:length(catchmentName)){
+  # Get date of observed in decimal
+  t <- decimal_date(isotopeS[[icatchment]]$date) - trunc(decimal_date(isotopeS[[icatchment]]$date))
+  
+  # Fit to sine wave to observed isotope in P using IRLS method
+  traditionalProcedure$fitSineS[[icatchment]] <- IRLS(Y = isotopeS[[icatchment]]$delta_18O, X = data.frame(cos = cos(2*pi*t), sin = sin(2*pi*t)), pweights = isotopeS[[icatchment]]$water_flux_mm)
+}
+
+# Plot to see the fitted sine-wave to observed isotope concentrations in precipitation
+icatchment <- 1 #Alp catchment
+  
+ggplot()+
+  geom_point(data = isotopeS[[icatchment]], aes(x = date, y = delta_18O, color = "cS (observed)"), alpha = 0.5) + 
+  geom_line(aes(x = isotopeS[[icatchment]]$date, y = as.numeric(traditionalProcedure$fitSineS[[icatchment]]$fitted.values), color = "cS (fitted sine-wave)"), linewidth = 0.75) +
+  scale_color_manual(values = c("cS (observed)" = "black", "cS (fitted sine-wave)" = "blue"), guide = guide_legend(override.aes = list(linetype = c("solid", "blank"),shape = c(NA, 19))))+
+  labs(x = "", y = expression(paste(delta^{18}, "O concentrations in S (‰)")), title = expression(paste("Alp - ", delta^{18}, "O concentrations in streamflow(‰)")), color = "")+
+  theme(legend.position = "top")+
+  theme_bw()
+
+
+icatchment <- 2 #Erlenbach catchment
+  
+ggplot()+
+  geom_point(data = isotopeS[[icatchment]], aes(x = date, y = delta_18O, color = "cS (observed)"), alpha = 0.5) + 
+  geom_line(aes(x = isotopeS[[icatchment]]$date, y = as.numeric(traditionalProcedure$fitSineS[[icatchment]]$fitted.values), color = "cS (fitted sine-wave)"), linewidth = 0.75) +
+  scale_color_manual(values = c("cS (observed)" = "black", "cS (fitted sine-wave)" = "blue"), guide = guide_legend(override.aes = list(linetype = c("solid", "blank"),shape = c(NA, 19))))+
+  labs(x = "", y = expression(paste(delta^{18}, "O concentrations in S(‰)")), title = expression(paste("Erlenbach - ", delta^{18}, "O concentrations in streamflow(‰)")), color = "")+
+  theme(legend.position = "top")+
+  theme_bw()
+```
+
+-   Step 3: Infer the transit time (parameters of the gamma) distribution and Fyw
+
+```{r, fig.width=10,fig.height=3, fig.align = 'center', eval = TRUE}
+
+for (icatchment in 1:2){
+  # Coefficient of the sine-wave cP = aP*cos(2*pi*t) + aP*sin(2*pi*t) + kP
+  traditionalProcedure$kP[icatchment] <- as.numeric(traditionalProcedure$fitSineP[[icatchment]]$coefficients[1])
+  traditionalProcedure$aP[icatchment] <- as.numeric(traditionalProcedure$fitSineP[[icatchment]]$coefficients[2])
+  traditionalProcedure$bP[icatchment] <- as.numeric(traditionalProcedure$fitSineP[[icatchment]]$coefficients[3])
+
+  # Coefficient of the sine-wave cS = aS*cos(2*pi*t) + aS*sin(2*pi*t) + kS
+  traditionalProcedure$kS[icatchment] <- as.numeric(traditionalProcedure$fitSineS[[icatchment]]$coefficients[1])
+  traditionalProcedure$aS[icatchment] <- as.numeric(traditionalProcedure$fitSineS[[icatchment]]$coefficients[2])
+  traditionalProcedure$bS[icatchment] <- as.numeric(traditionalProcedure$fitSineS[[icatchment]]$coefficients[3])
+  
+  # Find amplitudes AP and AS
+  traditionalProcedure$AP[icatchment] <- sqrt(sum(traditionalProcedure$aP[icatchment]^2 + traditionalProcedure$bP[icatchment]^2))
+  traditionalProcedure$AS[icatchment] <- sqrt(sum(traditionalProcedure$aS[icatchment]^2 + traditionalProcedure$bS[icatchment]^2))
+  
+  # Find the phase shift phiS - phiP
+  traditionalProcedure$phiP[icatchment] <- atan(traditionalProcedure$aP[icatchment]/traditionalProcedure$bP[icatchment])
+  traditionalProcedure$phiS[icatchment] <- atan(traditionalProcedure$aS[icatchment]/traditionalProcedure$bS[icatchment])
+  
+  if(traditionalProcedure$phiS[icatchment] - traditionalProcedure$phiP[icatchment] < 0){
+    traditionalProcedure$phiS_phiP[icatchment] <- atan((traditionalProcedure$aP[icatchment]*traditionalProcedure$bS[icatchment] - traditionalProcedure$aS[icatchment]*traditionalProcedure$bP[icatchment])/(traditionalProcedure$aP[icatchment]*traditionalProcedure$aS[icatchment] + traditionalProcedure$bP[icatchment]*traditionalProcedure$bS[icatchment]))
+  } else {
+    traditionalProcedure$phiS_phiP[icatchment] <- traditionalProcedure$phiS[icatchment] - traditionalProcedure$phiP[icatchment]
+  }
+
+  # Find parameters of the gamma distribution (alpha, beta)
+  alphaBeta <- findAlphaBetaMTT(phiS_phiP = traditionalProcedure$phiS_phiP[icatchment],
+                                AS = traditionalProcedure$AS[icatchment],
+                                AP = traditionalProcedure$AP[icatchment])
+  traditionalProcedure$alpha[icatchment] <- alphaBeta$alpha
+  traditionalProcedure$beta[icatchment] <- alphaBeta$beta
+  
+  # Find age threshold of young water fraction
+  traditionalProcedure$tauyw[icatchment] <-  0.0949 + 0.1065*traditionalProcedure$alpha[icatchment] - 0.0126*traditionalProcedure$alpha[icatchment]^2
+  
+  # Young water fraction = AS/AP
+  traditionalProcedure$ASAPratio[icatchment] <-  traditionalProcedure$AS[icatchment]/traditionalProcedure$AP[icatchment]
+  
+  # Young water fraction from gamma distribution with found tauyw and gamma distribution
+  traditionalProcedure$Fyw[icatchment] <- pgamma(q = traditionalProcedure$tauyw[icatchment],
+                                                 shape = traditionalProcedure$alpha[icatchment],
+                                                 scale = traditionalProcedure$beta[icatchment],
+                                                 lower.tail = TRUE)
+}
+
+#Assembling the above results (step 3) to a table
+source('R/summaryResult.R')
+traditionalProcedure$summaryResult <- summaryResult(traditionalProcedure)
+
+# Display the result (not Fyw is both ASAPRatio or Fyw in this table)
+traditionalProcedure$summaryResult
+
+```
+
+### 3.2. Revised procedure
+-   Step 1: Fit the sine-wave to observed isotope concentrations in precipitation. 
+The sine-wave use for fitting has the following form:
+
+    $$ c_P = A_P \cdot sin(2 \pi t + \varphi_P ) +  k_P $$
+
+In the below R script, we generate 10k parameter sets (nIter) with Latin Hypercube
+Samling with the respective given parameter range (AP = [1,3], phiP = (0, 2*pi), and
+kP = [-12,-8]), then we save results form the best 1 parameter set (evaluated by the
+weighted mean square error, the weights is precipitation volume)
+
+```{r, fig.width=10,fig.height=3, fig.align = 'center', eval = TRUE}
+
+# Create a list object to stored the results
+revisedProcedure <- list()
+
+# Fit Sine-wave to observed isotope data, setSeed = 2023 to reproduce exact results
+for (catchment in 1:2){
+  revisedProcedure$fitSineP[[catchment]] <- 
+    fitSineNL(observed = isotopeP[[catchment]]$delta_18O,
+              a = c(1,3),
+              phi = c(0, 2*pi),
+              k = c(-12,-8), 
+              t = isotopeP[[catchment]]$date,
+              nIter = 10000,
+              nBestIter = 1, 
+              weight = isotopeP[[catchment]]$water_flux_mm,
+              setSeed = 2023)
+}
+```
+
+Plot the best fitted sine wave from the revised procedures and compared it with
+observed data and the traditional approach
+
+```{r, fig.width=10,fig.height=3, fig.align = 'center', eval = TRUE}
+
+# Plot fitted sine wave from the revised + traditional procedures
+icatchment <- 1 #Alp catchment
+  
+ggplot()+
+  geom_point(data = isotopeP[[icatchment]], 
+             aes(x = date, y = delta_18O, color = "cP (observed)"), alpha = 0.8) + 
+  geom_line(aes(x = isotopeP[[icatchment]]$date, 
+                y = as.numeric(traditionalProcedure$fitSineP[[icatchment]]$fitted.values), 
+                color = "cP (traditional procedure)"), linewidth = 0.75) +
+    geom_line(data = revisedProcedure$fitSineP[[icatchment]]$simulated, aes(x = date, 
+                y = simulated, 
+                color = "cP (revised procedure)")) +
+  scale_color_manual(values = c("cP (observed)" = "black", "cP (revised procedure)" = "red", "cP (traditional procedure)" = "blue"), guide = guide_legend(override.aes = list(linetype = c("blank","solid", "solid"),shape = c(19, NA, NA))))+
+  labs(x = "", 
+       y = expression(paste(delta^{18}, "O concentrations in P(‰)")), 
+       title = expression(paste("Alp - ", delta^{18}, "O concentrations in precipitation(‰) - Traditional vs. Revised procedures")), 
+       color = "")+
+  theme(legend.position = "top")+
+  theme_bw()
+
+icatchment <- 2 #Erlenbach catchment
+  
+ggplot()+
+  geom_point(data = isotopeP[[icatchment]], 
+             aes(x = date, y = delta_18O, color = "cP (observed)"), alpha = 0.8) + 
+  geom_line(aes(x = isotopeP[[icatchment]]$date, 
+                y = as.numeric(traditionalProcedure$fitSineP[[icatchment]]$fitted.values), 
+                color = "cP (traditional procedure)")) +
+    geom_line(data = revisedProcedure$fitSineP[[icatchment]]$simulated, aes(x = date, 
+                y = simulated, 
+                color = "cP (revised procedure)"), linewidth = 0.75) +
+  scale_color_manual(values = c("cP (observed)" = "black", "cP (revised procedure)" = "red", "cP (traditional procedure)" = "blue"), guide = guide_legend(override.aes = list(linetype = c("blank","solid", "solid"),shape = c(19, NA, NA))))+
+  labs(x = "", 
+       y = expression(paste(delta^{18}, "O concentration in P(‰)")), 
+       title = expression(paste("Erlenbach - ", delta^{18}, "O concentrations in precipitation(‰) - Traditional vs. Revised procedures")), 
+       color = "")+
+  theme(legend.position = "top")+
+  theme_bw()
+```
+
+-   Step 2: Find parameters of the transit time (gamma) distribution by fitting
+the convolution of the sine-wave (above) with the gamma distribution with observed
+instream isotope concentrations. This step is quite computational demanding and 
+it should be run parallel in a computer cluster.
+
+```{r, fig.width=10,fig.height=3, fig.align = 'center', eval = FALSE}
+
+# Fit Gamma using observed instream isotope concentrations
+#    Here we show the code, if this code was not run, then the results can be 
+#    obtained from our run with this setting in the next R script.
+
+for (icatchment in 1:2){
+revisedProcedure$fitGamma[[icatchment]] <- 
+  fitGamma(AP = revisedProcedure$fitSineP[[icatchment]]$parameter$a[1], 
+           phiP = revisedProcedure$fitSineP[[icatchment]]$parameter$phi[1],
+           kP = revisedProcedure$fitSineP[[icatchment]]$parameter$k[1], 
+           alphaRange = c(0.01,5),
+           betaRange = c(0.01,5), 
+           simulatedDate = isotopeS[[icatchment]]$date,
+           fittedData = isotopeS[[icatchment]]$delta_18O, 
+           weight = isotopeS[[icatchment]]$water_flux_mm,
+           nIter = 10000, 
+           nBestIter = 100, 
+           nCores = 50, 
+           nWarmupYears = 5,
+           setSeed = 2023) 
+}
+```
+
+Now compared the simulated instream istotope concentrations from the traditional 
+approach with the fitted sine-wave to observed isotope concentrations in streamflow
+from the traditional approach
+
+```{r, fig.width=10,fig.height=3, fig.align = 'center', eval = TRUE}
+# Load the results (uncomment the next line) if users does not run the previous R script
+ load('data/revisedProcedure.rda')
+
+# Plot the fitted results and compared with the traditional and observed data
+icatchment <- 1
+ggplot()+
+  geom_point(data = isotopeS[[icatchment]], aes(x = date, y = delta_18O, color = "cS (observed)"), alpha = 0.5) + 
+  geom_line(data = revisedProcedure$fitGamma[[icatchment]]$simulated, aes(x = date, y = simulated, group = simulation, color = "cS (revised procedure - top 100)"), alpha = 0.8, linewidth = 0.1)+
+  geom_line(aes(x = isotopeS[[icatchment]]$date, y = as.numeric(traditionalProcedure$fitSineS[[icatchment]]$fitted.values), color = "cS (traditional procedure)"), linewidth=0.75) +
+  geom_line(data = subset(revisedProcedure$fitGamma[[icatchment]]$simulated, simulation == "simulation_1"), aes(x = date,y = simulated, color = "cS (revised procedure - best)"),linewidth = 0.75)+
+  scale_color_manual(values = c("cS (revised procedure - top 100)" = "gray", "cS (observed)" = "black", "cS (revised procedure - best)" = "red", "cS (traditional procedure)" = "blue"), guide = guide_legend(override.aes = list(linetype = c("blank","solid","solid", "solid"),shape = c(19, NA, NA, NA))))+
+  labs(x = "", y = expression(paste(delta^{18}, "O concentrations in streamflow (‰)")), title = expression(paste("Alp - ", delta^{18}, "O concentrations in streamflow(‰) - Traditional vs. Revised procedures")), color = "")+
+  theme(legend.position = "top")+
+  theme_bw()
+
+
+# Plot the fitted results and compared with the traditional and observed data
+icatchment <- 2
+ggplot()+
+  geom_point(data = isotopeS[[icatchment]], aes(x = date, y = delta_18O, color = "cS (observed)"), alpha = 0.5) + 
+  geom_line(data = revisedProcedure$fitGamma[[icatchment]]$simulated, aes(x = date, y = simulated, group = simulation, color = "cS (revised procedure - top 100)"), alpha = 0.8, linewidth = 0.1)+
+  geom_line(aes(x = isotopeS[[icatchment]]$date, y = as.numeric(traditionalProcedure$fitSineS[[icatchment]]$fitted.values), color = "cS (traditional procedure)"), linewidth=0.75) +
+  geom_line(data = subset(revisedProcedure$fitGamma[[icatchment]]$simulated, simulation == "simulation_1"), aes(x = date,y = simulated, color = "cS (revised procedure - best)"),linewidth = 0.75)+
+  scale_color_manual(values = c("cS (revised procedure - top 100)" = "gray", "cS (observed)" = "black", "cS (revised procedure - best)" = "red", "cS (traditional procedure)" = "blue"), guide = guide_legend(override.aes = list(linetype = c("blank","solid","solid", "solid"),shape = c(19, NA, NA, NA))))+
+  labs(x = "", y = expression(paste(delta^{18}, "O concentrations in streamflow (‰)")), title = expression(paste("Erlenbach - ", delta^{18}, "O concentrations in streamflow(‰) - Traditional vs. Revised procedures")), color = "")+
+  theme(legend.position = "top")+
+  theme_bw()
+
+```
+
+Parameters of the gamma distribution from the revised approach and the estimated
+young water fraction (with user-defined age thresholds).
+
+```{r, fig.width=10,fig.height=3, fig.align = 'center', eval = TRUE}
+
+# Get Fyw for 100 best parameter sets
+for(catchment in 1:2){
+  Fywater <- c()
+  for (simulation in 1:nrow(revisedProcedure$fitGamma[[1]]$parameterSet)){
+  Fywater <- c(Fywater, pgamma(q = traditionalProcedure$tauyw[catchment],
+                               shape = revisedProcedure$fitGamma[[catchment]]$parameterSet$alpha[simulation],
+                               scale = revisedProcedure$fitGamma[[catchment]]$parameterSet$beta[simulation],
+                               lower.tail = TRUE))
+ }
+  revisedProcedure$fitGamma[[catchment]]$parameterSet$Fyw <- Fywater
+}
+```
+
+Compared results (parameter of the transit time - gamma distribution and the Fyw)
+between the revised and the traditional procedures
+
+```{r, fig.width=8,fig.height=4, fig.align = 'center', eval = TRUE}
+# Catchment id
+icatchment <- 1 # Alp catchment
+
+# Create data frame containing results from the traditonal procedure
+addPoints <- data.frame(values = c(traditionalProcedure$alpha[icatchment],
+                                   traditionalProcedure$beta[icatchment],
+                                   traditionalProcedure$Fyw[icatchment]), 
+                        ind = c("alpha","beta", "Fyw"))
+
+# Create data frame containg the best parameter sets from the revised procedure
+bestPoints <- data.frame(values = as.numeric(revisedProcedure$fitGamma[[icatchment]]$parameterSet[1,c(4,5,6)]),
+                         ind = c("alpha","beta", "Fyw"))
+
+# Plot parameters of the transit time (gamma) distribution and Fyw from the revised vs. traditional procedures
+# POINTS indicate results from the traditional approach
+# CROSSES indicate the best parameter set from the revised approach
+ggplot(stack(revisedProcedure$fitGamma[[icatchment]]$parameterSet[,c(4,5,6)]))+
+  geom_boxplot(aes(x = ind, y = values, fill = ind), outlier.shape = NA, show.legend = FALSE)+
+  geom_point(data = addPoints, aes(x = ind, y = values, fill = ind), size = 4)+
+  geom_point(data = bestPoints, aes(x = ind, y = values, fill = ind), size = 4, shape = 3)+
+  labs(x = "", y = "Value", title = "Parameters of the transit times and Fyw (traditional vs. proposed procedures)") +  
+  facet_wrap(. ~ ind, scales = "free")+
+  theme(legend.position = "none")
+
+# Catchment id
+icatchment <- 2 # Alp catchment
+
+# Create data frame containing results from the traditonal procedure
+addPoints <- data.frame(values = c(traditionalProcedure$alpha[icatchment],
+                                   traditionalProcedure$beta[icatchment],
+                                   traditionalProcedure$Fyw[icatchment]), 
+                        ind = c("alpha","beta", "Fyw"))
+
+# Create data frame containg the best parameter sets from the revised procedure
+bestPoints <- data.frame(values = as.numeric(revisedProcedure$fitGamma[[icatchment]]$parameterSet[1,c(4,5,6)]),
+                         ind = c("alpha","beta", "Fyw"))
+
+# Plot parameters of the transit time (gamma) distribution and Fyw from the revised vs. traditional procedures
+# POINTS indicate results from the traditional approach
+# CROSSES indicate the best parameter set from the revised approach
+ggplot(stack(revisedProcedure$fitGamma[[icatchment]]$parameterSet[,c(4,5,6)]))+
+  geom_boxplot(aes(x = ind, y = values, fill = ind), outlier.shape = NA, show.legend = FALSE)+
+  geom_point(data = addPoints, aes(x = ind, y = values, fill = ind), size = 4)+
+  geom_point(data = bestPoints, aes(x = ind, y = values, fill = ind), size = 4, shape = 3)+
+  labs(x = "", y = "Value", title = "Parameters of the transit times and Fyw (traditional vs. proposed procedures)") +  
+  facet_wrap(. ~ ind, scales = "free")+
+  theme(legend.position = "none")
+```
+
+
+## 4. Effect of sampling frequency
+### 4.1 Data processing and scenarios
+
+
+
+### References
