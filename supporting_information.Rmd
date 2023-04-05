@@ -410,15 +410,16 @@ bestPoints <- data.frame(values = as.numeric(revisedProcedure$fitGamma[[icatchme
                          ind = c("alpha","beta", "Fyw"))
 
 # Plot parameters of the transit time (gamma) distribution and Fyw from the revised vs. traditional procedures
-# POINTS indicate results from the traditional approach
-# CROSSES indicate the best parameter set from the revised approach
 ggplot(stack(revisedProcedure$fitGamma[[icatchment]]$parameterSet[,c(4,5,6)]))+
-  geom_boxplot(aes(x = ind, y = values, fill = ind), outlier.shape = NA, show.legend = FALSE)+
-  geom_point(data = addPoints, aes(x = ind, y = values, fill = ind), size = 4)+
-  geom_point(data = bestPoints, aes(x = ind, y = values, fill = ind), size = 4, shape = 3)+
-  labs(x = "", y = "Value", title = "Parameters of the transit times and Fyw (traditional vs. proposed procedures)") +  
+  geom_boxplot(aes(x = ind, y = values, fill = ind), outlier.shape = NA)+
+  geom_point(data = addPoints, aes(x = ind, y = values, fill = ind, shape = "1"), size = 3, color = "blue")+
+  geom_point(data = bestPoints, aes(x = ind, y = values, fill = ind, shape = "3"), size = 3,  color = "red", stroke = 1)+
+  labs(x = "", y = "Value", title = "Alp: Parameters of the transit time distr. & Fyw (traditional vs. proposed procedures)") +  
   facet_wrap(. ~ ind, scales = "free")+
-  theme(legend.position = "none")
+  scale_fill_manual(name = "", values = c("#f8766d", "#7cae00", "#00bfc4"))+
+  scale_shape_manual(name = "", labels = c("traditional procedure","revised procedure (best)"), values = c(16, 17))+
+  guides(shape = guide_legend(override.aes = list(shape = c(16, 17), color = c("blue", "red"))), fill = guide_legend(override.aes = list(shape = NA) )) +
+  theme_bw()
 
 # Catchment id
 icatchment <- 2 # Alp catchment
@@ -434,15 +435,16 @@ bestPoints <- data.frame(values = as.numeric(revisedProcedure$fitGamma[[icatchme
                          ind = c("alpha","beta", "Fyw"))
 
 # Plot parameters of the transit time (gamma) distribution and Fyw from the revised vs. traditional procedures
-# POINTS indicate results from the traditional approach
-# CROSSES indicate the best parameter set from the revised approach
 ggplot(stack(revisedProcedure$fitGamma[[icatchment]]$parameterSet[,c(4,5,6)]))+
-  geom_boxplot(aes(x = ind, y = values, fill = ind), outlier.shape = NA, show.legend = FALSE)+
-  geom_point(data = addPoints, aes(x = ind, y = values, fill = ind), size = 4)+
-  geom_point(data = bestPoints, aes(x = ind, y = values, fill = ind), size = 4, shape = 3)+
-  labs(x = "", y = "Value", title = "Parameters of the transit times and Fyw (traditional vs. proposed procedures)") +  
+  geom_boxplot(aes(x = ind, y = values, fill = ind), outlier.shape = NA)+
+  geom_point(data = addPoints, aes(x = ind, y = values, fill = ind, shape = "1"), size = 3, color = "blue")+
+  geom_point(data = bestPoints, aes(x = ind, y = values, fill = ind, shape = "3"), size = 3,  color = "red", stroke = 1)+
+  labs(x = "", y = "Value", title = "Erlendbach: Parameters of the transit time distr. & Fyw (traditional vs. proposed procedures)") +  
   facet_wrap(. ~ ind, scales = "free")+
-  theme(legend.position = "none")
+  scale_fill_manual(name = "", values = c("#f8766d", "#7cae00", "#00bfc4"))+
+  scale_shape_manual(name = "", labels = c("traditional procedure","revised procedure (best)"), values = c(16, 17))+
+  guides(shape = guide_legend(override.aes = list(shape = c(16, 17), color = c("blue", "red"))), fill = guide_legend(override.aes = list(shape = NA) )) +
+  theme_bw()
 ```
 
 
