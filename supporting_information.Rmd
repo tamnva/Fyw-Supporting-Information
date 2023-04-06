@@ -67,17 +67,30 @@ isotopeData
 
 # Plot isotope data in precipitation and streamflow
 ggplot(isotopeData) +
-  geom_point(aes(x = date, y = delta_18O, col = catchment), alpha = 0.5)+
-  facet_grid(cols = vars(variable))+ 
+  geom_point(aes(x = date, y = delta_18O, col = variable, shape = variable), alpha = 0.5)+
+  facet_grid(cols = vars(catchment))+ 
+  scale_color_manual(name = "",
+                     values=c("gray", "blue", NA, NA), 
+                     labels = c(expression("c"[P]), expression("c"[S]),NA, NA))+ 
+  scale_shape_manual(name = "",
+                     values=c(16, 3, NA, NA), 
+                     labels = c(expression("c"[P]), expression("c"[S]), NA, NA))+ 
   labs(x = "", y = expression(paste(delta^{18}, "O concentration (‰)")), color = "") +
   theme_bw()
 
+
 # Plot precipitation (P) and streamflow (S)
 ggplot(isotopeData) +
-  geom_line(aes(x = date, y = water_flux_mm, col = catchment), alpha = 0.5, linewidth = 0.75)+
-  facet_grid(cols = vars(variable))+
-  labs(x = "", y = "P or S (mm/day)", color = "")+
-  theme_bw() 
+  geom_point(aes(x = date, y = water_flux_mm, col = variable, shape = variable), alpha = 0.5)+
+  facet_grid(cols = vars(catchment))+ 
+  scale_color_manual(name = "",
+                     values=c("gray", "blue", NA, NA), 
+                     labels = c(expression("c"[P]), expression("c"[S]),NA, NA))+ 
+  scale_shape_manual(name = "",
+                     values=c(16, 3, NA, NA), 
+                     labels = c(expression("c"[P]), expression("c"[S]), NA, NA))+ 
+  labs(x = "", y = "P or S (mm/day)", color = "") +
+  theme_bw()
 ```
 
 ## 3. Young water fraction estimation
@@ -429,7 +442,7 @@ revisedProcedure$fitGamma[[icatchment]] <-
 save(revisedProcedure, file = "revisedProcedure.rda")
 ```
 
-Now compared the simulated instream istotope concentrations from the traditional 
+Now compared the simulated instream isotope concentrations from the traditional 
 approach with the fitted sine-wave to observed isotope concentrations in streamflow
 from the traditional approach
 
@@ -702,7 +715,7 @@ ggplot()+
 ```
 
 
-### 4.2 Find Fyw with different sampling frequencies
+### 4.2 Find Fyw
 
 ```{r, eval = FALSE}
 for (icatchment in 1:2){
@@ -751,6 +764,35 @@ for (icatchment in 1:2){
 }
 
 save(isotopeInter, file = "isotopeInter.rda")
+
+```
+
+### Suplement code
+
+#### Code for Figure 1b
+
+```{r, eval = FALSE}
+ggplot(isotopeData) +
+  geom_point(aes(x = date, y = delta_18O, col = variable, shape = variable), alpha = 0.5)+
+  facet_grid(rows = vars(catchment))+ 
+  scale_color_manual(name = "",
+                     values=c("gray", "blue", NA, NA), 
+                     labels = c(expression("c"[P]), expression("c"[S]),NA, NA))+ 
+  scale_shape_manual(name = "",
+                     values=c(16, 3, NA, NA), 
+                     labels = c(expression("c"[P]), expression("c"[S]), NA, NA))+ 
+  labs(x = "", 
+       y = expression(paste(delta^{18}, "O concentration (‰)")), 
+       color = "",
+       title = "(b)") +
+  guides(shape = guide_legend(override.aes = list(size = 2.5)))+
+  theme(legend.text = element_text(size = 12),
+        plot.title = element_text(hjust = 1),
+        panel.background = element_rect(fill = "#FFFFFF", color = "black"),
+        panel.grid.major=element_line(colour="gray90", linewidth = 0.2),
+        panel.grid.minor=element_line(colour="gray90", linewidth = 0.2),
+        strip.background = element_rect(color = "black", linewidth = 0.2))
+
 
 ```
 
