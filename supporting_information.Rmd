@@ -178,7 +178,7 @@ for (i in 1:2){
                 y = as.numeric(traditionalProcedure$fitSineP[[i]]$fitted.values), 
                 color = "cP (fitted sine-wave)"), 
             linewidth = 0.75) +
-  scale_color_manual(values = c("cP (observed)" = "black", "cP (fitted sine-wave)" = "blue"), 
+  scale_color_manual(values = c("cP (observed)" = "gray", "cP (fitted sine-wave)" = "blue"), 
                      guide = guide_legend(override.aes = list(linetype = c("solid", "blank"), 
                                                               shape = c(NA, 19)))) +
   labs(x = "", 
@@ -220,7 +220,7 @@ for (i in 1:2){
                 y = as.numeric(traditionalProcedure$fitSineS[[i]]$fitted.values), 
                 color = "cS (fitted sine-wave)"), 
             linewidth = 0.75) +
-  scale_color_manual(values = c("cS (observed)" = "black", 
+  scale_color_manual(values = c("cS (observed)" = "gray", 
                                 "cS (fitted sine-wave)" = "blue"), 
                      guide = guide_legend(override.aes = 
                                             list(linetype = c("solid", "blank"), 
@@ -352,7 +352,7 @@ for (i in 1:length(catchmentName)){
                   y = simulated, 
                   color = "cP (revised procedure)"), 
               linewidth = 0.75) +
-    scale_color_manual(values = c("cP (observed)" = "black",  
+    scale_color_manual(values = c("cP (observed)" = "gray",  
                                   "cP (revised procedure)" = "red", 
                                   "cP (traditional procedure)" = "blue"), 
                        guide = guide_legend(override.aes = 
@@ -438,8 +438,8 @@ for (i in 1:2){
                 y = simulated, 
                 color = "cS (revised procedure - best)"),
             linewidth = 0.75)+
-  scale_color_manual(values = c("cS (revised procedure - top 100)" = "gray", 
-                                "cS (observed)" = "black", 
+  scale_color_manual(values = c("cS (revised procedure - top 100)" = "green", 
+                                "cS (observed)" = "gray", 
                                 "cS (revised procedure - best)" = "red", 
                                 "cS (traditional procedure)" = "blue"), 
                      guide = guide_legend(override.aes = 
@@ -627,7 +627,7 @@ for (i in 1:4){
                    color = "daily sampling"), 
                shape = 1, 
                size = 1, 
-               alpha = 0.8)+
+               alpha = 0.5)+
     geom_point(data = isotopeInter$catchment[[1]]$dateInterVal[[i]]$S, 
                aes(x = date, 
                    y = delta_18O, 
