@@ -438,7 +438,7 @@ for (i in 1:2){
                 y = simulated, 
                 color = "cS (revised procedure - best)"),
             linewidth = 0.75)+
-  scale_color_manual(values = c("cS (revised procedure - top 100)" = "green", 
+  scale_color_manual(values = c("cS (revised procedure - top 100)" = "pink", 
                                 "cS (observed)" = "gray", 
                                 "cS (revised procedure - best)" = "red", 
                                 "cS (traditional procedure)" = "blue"), 
