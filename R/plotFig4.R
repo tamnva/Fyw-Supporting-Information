@@ -16,8 +16,8 @@ plotFig4 <- function(Fywater){
     geom_boxplot(aes(x = timeStep, y = Fyw, group = timeStep,fill = as.character(timeStep)), alpha = 0.8)+
     facet_wrap(~ catchment + tau, ncol = 2)+
     scale_x_discrete(limits=c("#f8766d", "#7cae00", "#00bfc4", "#fcdf03"),
-                     labels=c("daily", "weekly", "biweekly", "monthly")) +
-    scale_fill_manual(name = " ", labels = c("daily", "weekly", "biweekly", "monthly"),
+                     labels=c("daily", "weekly", "bi-weekly", "monthly")) +
+    scale_fill_manual(name = " ", labels = c("daily", "weekly", "bi-weekly", "monthly"),
                       values = c("#f8766d", "#7cae00", "#00bfc4", "#fcdf03"))+
     labs(x = "", y = expression(F[yw])) +
     theme_bw()+ ylim(0,1) + 

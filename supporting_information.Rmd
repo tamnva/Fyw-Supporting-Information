@@ -21,7 +21,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ## 1. Introduction
 
 This document describes how the young water fraction is calculated based on the 
-traditional [@Kirchner2016] and revised (this study) procedures using the Fyw package. 
+traditional [@Kirchner2016] and proposed (this study) procedures using the Fyw package. 
 All results in the submitted manuscript mentioned below can be reproduced by 
 running the R scripts provided here.
 
@@ -50,6 +50,7 @@ library(lubridate)       # Converting date to decimal
 library(zoo)             # Linear interpolation of time series data
 library(egg)             # Arranging multiple ggplot objects
 library(ggpubr)          # Text annotation
+library(tibble)
 ```
 
 ## 2. Data processing and exploration
@@ -72,7 +73,7 @@ is only optional.
 
 Display and visualization of the data (isotope composition in precipitation and streamflow, precipitation and streamflow) from the Alp and Erlenbach catchments. From here on, we refer "P" to precipitation and "S" to streamflow.
 
-```{r, fig.width=12,fig.height=3, fig.align = 'center', eval = TRUE}
+```{r, fig.width = 12, fig.height = 3, fig.align = 'center', eval = TRUE}
 # Display the data
 isotopeData
 
@@ -148,7 +149,7 @@ The procedure for finding the young water fraction and the transit time distribu
 
 -   Step 1: Fit the sine-wave to observed isotope in precipitation, e.g., using the iteratively least squares (IRLS) regression approach. The sine-wave used for fitting has the following form :
 
-    $$ c_P = a_P \cdot cos(2 \pi t) + b_P \cdot sin(2 \pi t) + k_P $$
+    $$ c_P(t) = a_P \cdot cos(2 \pi t) + b_P \cdot sin(2 \pi t) + k_P $$
 
 ```{r, fig.width=10,fig.height=3, fig.align = 'center'}
 # Create a list object to store results from the traditional procedure
@@ -194,7 +195,7 @@ ggarrange(plt[[1]], plt[[2]], ncol = 2, nrow = 1)
 
 -   Step 2: Fit the sine-wave to observed isotope in streamflow, e.g., using IRLS. The sine-wave used for fitting has the following form:
 
-    $$ c_S = a_S \cdot cos(2 \pi t) + b_P \cdot sin(2 \pi t) + k_S $$
+    $$ c_S(t) = a_S \cdot cos(2 \pi t) + b_P \cdot sin(2 \pi t) + k_S $$
 
 ```{r, fig.width=10,fig.height=3, fig.align = 'center'}
 
@@ -258,12 +259,14 @@ for (icatchment in 1:2){
                                                   traditionalProcedure$bS[icatchment]^2))
   
   # Find phiS, phiP and the phase shift phiS - phiP
-  traditionalProcedure$phiP[icatchment] <- findPhi(aP = traditionalProcedure$aP[icatchment], 
-                                                   bP = traditionalProcedure$bP[icatchment])
-  traditionalProcedure$phiS[icatchment] <- findPhi(aP = traditionalProcedure$aS[icatchment], 
-                                                   bP = traditionalProcedure$bS[icatchment])
-  traditionalProcedure$phiS_phiP[icatchment] <- traditionalProcedure$phiS[icatchment] - 
-                                                traditionalProcedure$phiP[icatchment]
+  phi <- findPhiPhaseShift(aP = traditionalProcedure$aP[icatchment], 
+                           bP = traditionalProcedure$bP[icatchment], 
+                           aS = traditionalProcedure$aS[icatchment], 
+                           bS = traditionalProcedure$bS[icatchment])
+
+  traditionalProcedure$phiP[icatchment] <- phi$phiP
+  traditionalProcedure$phiS[icatchment] <- phi$phiS
+  traditionalProcedure$phiS_phiP[icatchment] <- phi$phiS_phiP
 
   # Find parameters of the gamma distribution (alpha, beta)
   alphaBeta <- findAlphaBetaMTT(phiS_phiP = traditionalProcedure$phiS_phiP[icatchment], 
@@ -298,11 +301,11 @@ traditionalProcedure$summaryResult
 
 ```
 
-### 3.2. Revised procedure
+### 3.2. proposed procedure
 -   Step 1: Fit the sine-wave to observed isotope in precipitation. 
 The sine-wave used for fitting has the following form:
 
-    $$ c_P = A_P \cdot sin(2 \pi t - \varphi_P ) +  k_P $$
+    $$ c_P(t) = A_P \cdot sin(2 \pi t - \varphi_P ) +  k_P $$
 
 In the below R script, we generate 10k parameter sets (nIter) with Latin Hypercube
 Samling with the respective given parameter range (AP = [1,3], phiP = (0, 2*pi), and
@@ -329,7 +332,7 @@ for (catchment in 1:2){
 }
 ```
 
-Plot the best fitted-sine wave from the revised procedures and compared it with
+Plot the best fitted-sine wave from the proposed procedures and compared it with
 observed data and the traditional approach
 
 ```{r, fig.width=10,fig.height=3, fig.align = 'center'}
@@ -350,10 +353,10 @@ for (i in 1:length(catchmentName)){
     geom_line(data = revisedProcedure$fitSineP[[i]]$simulated, 
               aes(x = date, 
                   y = simulated, 
-                  color = "cP (revised procedure)"), 
+                  color = "cP (proposed procedure)"), 
               linewidth = 0.75) +
     scale_color_manual(values = c("cP (observed)" = "gray",  
-                                  "cP (revised procedure)" = "red", 
+                                  "cP (proposed procedure)" = "red", 
                                   "cP (traditional procedure)" = "blue"), 
                        guide = guide_legend(override.aes = 
                                               list(linetype = c("blank","solid", "blank"), 
@@ -425,7 +428,7 @@ for (i in 1:2){
             aes(x = date, 
                 y = simulated, 
                 group = simulation, 
-                color = "cS (revised procedure - top 100)"), 
+                color = "cS (proposed procedure - top 100)"), 
             alpha = 0.8, 
             linewidth = 0.1)+
   geom_line(aes(x = isotopeS[[i]]$date, 
@@ -436,11 +439,11 @@ for (i in 1:2){
                           simulation == "simulation_1"), 
             aes(x = date,
                 y = simulated, 
-                color = "cS (revised procedure - best)"),
+                color = "cS (proposed procedure - best)"),
             linewidth = 0.75)+
-  scale_color_manual(values = c("cS (revised procedure - top 100)" = "pink", 
+  scale_color_manual(values = c("cS (proposed procedure - top 100)" = "pink", 
                                 "cS (observed)" = "gray", 
-                                "cS (revised procedure - best)" = "red", 
+                                "cS (proposed procedure - best)" = "red", 
                                 "cS (traditional procedure)" = "blue"), 
                      guide = guide_legend(override.aes = 
                                             list(linetype = c("blank","solid","solid", "solid"),
@@ -460,7 +463,7 @@ for (i in 1:2){
 ggarrange(plt[[1]], plt[[2]], ncol = 2, nrow = 1, widths = c(0.65, 1))
 ```
 
-Parameters of the gamma distribution from the revised approach and the estimated
+Parameters of the gamma distribution from the proposed approach and the estimated
 young water fraction (with user-defined age thresholds).
 
 ```{r, fig.width=10,fig.height=3, fig.align = 'center', eval = TRUE}
@@ -479,7 +482,7 @@ for(catchment in 1:2){
 ```
 
 Compare results (parameter of the transit time - gamma distribution and the Fyw)
-between the revised and the traditional procedures
+between the proposed and the traditional procedures
 
 ```{r, fig.width=10,fig.height=3, fig.align = 'center', eval = TRUE}
 
@@ -498,7 +501,7 @@ between the revised and the traditional procedures
                                        traditionalProcedure$Fyw[i]), 
                             ind = c("alpha","beta", "Fyw"))
     
-    # Plot parameters of the transit time (gamma) distribution and Fyw from the revised vs. traditional procedures
+    # Plot parameters of the transit time (gamma) distribution and Fyw from the proposed vs. traditional procedures
     plt[[i]] <- ggplot(stack(revisedProcedure$fitGamma[[i]]$parameterSet[,c(4,5,6)]))+
       geom_boxplot(aes(x = ind, 
                        y = values, 
@@ -618,7 +621,7 @@ Plot to see the original and interpolated data at different time intervals (e.g.
 
 # This is and example of plot for daily and monthly sampling interval for instream isotope
 plt <- list()
-samplingInterval <- c("Alp - daily", "Alp - weekly", "Alp - biweekly", "Alp - monthly")
+samplingInterval <- c("Alp - daily", "Alp - weekly", "Alp - bi-weekly", "Alp - monthly")
 for (i in 1:4){
   plt[[i]] <- ggplot()+
     geom_point(data = isotopeInter$catchment[[1]]$dateInterVal[[1]]$S, 
@@ -752,9 +755,9 @@ ggplot(Fywater)+
                alpha = 0.8)+
   facet_wrap(~ catchment + tau, ncol = 2)+
   scale_x_discrete(limits=c("#f8766d", "#7cae00", "#00bfc4", "#fcdf03"),
-                   labels=c("daily", "weekly", "biweekly", "monthly")) +
+                   labels=c("daily", "weekly", "bi-weekly", "monthly")) +
   scale_fill_manual(name = " ", 
-                    labels = c("daily", "weekly", "biweekly", "monthly"),
+                    labels = c("daily", "weekly", "bi-weekly", "monthly"),
                     values = c("#f8766d", "#7cae00", "#00bfc4", "#fcdf03"))+
   labs(x = "", 
        y = expression(F[yw])) +

@@ -21,7 +21,7 @@ plotFig1 <- function(isotopeData){
     geom_point(aes(x = date, y = delta_18O, col = variable, shape = variable), alpha = 0.5)+
     facet_grid(rows = vars(catchment))+ 
     scale_color_manual(name = "",
-                       values=c("gray", "blue", NA, NA), 
+                       values=c("gray25", "blue", NA, NA), 
                        labels = c(expression("c"[P]), expression("c"[S]),NA, NA))+ 
     scale_shape_manual(name = "",
                        values=c(16, 3, NA, NA), 
